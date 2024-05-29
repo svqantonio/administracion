@@ -50,12 +50,17 @@ document.addEventListener('DOMContentLoaded', function() {
             tokenDate(token)
             .then(response => {
                 if (checkTokenDate(response).status == 'error') {
-                    let rspn_cmbd_st = Object.assign({}, response, {'redirection' : 'index.html'});
-                    let rspn_cmbd_js = JSON.stringify(rspn_cmbd_st);
-                    swalNotificationAndLeave(rspn_cmbd_js);
+                    var json = {
+                        "status" : response.status,
+                        "message" : response.message,
+                        "token_expiration" : response.token_expiration,
+                        "redirection" : "index.html",
+                        "timer" : 1500
+                    };
+                    swalNotificationAndLeave(json);
                 }
             }).catch(error => {
-                console.error(error);
+                console.log(error);
             });
             getUserData(token);
         }
@@ -89,7 +94,7 @@ function deleteOldTokens() {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === XMLHttpRequest.DONE) {
             var response = JSON.parse(xhr.responseText);    
-            //console.log("Respuesta del servidor a borrar antiguos tokens: ", response);
+            console.log("Respuesta del servidor a borrar antiguos tokens: ", response);
         }
     };
     xhr.send();
@@ -135,11 +140,13 @@ function checkTokenDate(response) { //En esta funcion le pasamos un token existe
         //console.log("Fecha actual: ", currentDate);
         var expirationDate = new Date(response.token_expiration);
         //console.log("Fecha de expiracion: ", expirationDate);
+        var redirection = "index.html";
         if (currentDate > expirationDate)
             return {
                 "status" : "error",
                 "message" : "El token ha expirado",
-                "timer" : 1500
+                "redirection" : redirection,
+                "timer" : timer
             };
         else 
             return {
@@ -151,7 +158,8 @@ function checkTokenDate(response) { //En esta funcion le pasamos un token existe
         return {
             "status" : "error",
             "message" : "No se ha encontrado la fecha de expiración del token",
-            "timer" : 1500
+            "redirection" : redirection,
+            "timer" : timer
         };
 }
 

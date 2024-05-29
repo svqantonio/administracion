@@ -40,11 +40,13 @@
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
                 return [
                     "status" => "success",
+                    "message" => "Existe fecha de vigencia para el token",
                     "token_expiration" => $result['token_expiration']
                 ];
             } else 
                 return [
                     "status" => "error",
+                    "message" => "No estás logueado, te retornamos al login",
                     "token_expiration" => null,
                 ];
         }
