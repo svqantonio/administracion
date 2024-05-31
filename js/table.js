@@ -13,7 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
         getTableStructure(table)
         .then(response => {
             let data = getJsonFromUrlParams();
-            buildForm(response, data, table);
+            console.log("Response: ", response);
+            buildFormEdit(response, data, table);
         })
         .catch(error => {
             console.error(error);
@@ -98,6 +99,8 @@ function loadData_specificTable(tableFields, tableData, tbody) {
                 td.textContent = '***********';    
             else if (column.COLUMN_NAME == 'role')
                 td.textContent = capitalizeFirstLetter(row[column.COLUMN_NAME]);
+            else if (column.COLUMN_NAME == 'name')
+                td.textContent = capitalizeFirstLetter(row[column.COLUMN_NAME]);
             else
                 td.textContent = row[column.COLUMN_NAME];
             
@@ -153,10 +156,6 @@ function loadData_specificTable(tableFields, tableData, tbody) {
     });
 }
 
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-}
-
 function getTableStructure(table) {
     return new Promise((resolve, reject) => {
         var xhr = new XMLHttpRequest();
@@ -175,13 +174,13 @@ function getTableStructure(table) {
     });
 }   
 
-function buildForm(tableStructure, data, table) { //Funcion para crear el formulario dependiendo de la estructura de la tabla
-    var formEdit = document.getElementsByClassName('formEdit')[0]; //Primero cogemos el formulario
-    // console.log("Table structure: ", tableStructure);
-    // console.log("Data: ", data);
+function buildFormEdit(tableStructure, data, table) { //Funcion para crear el formulario dependiendo de la estructura de la tabla
+    var formEdit = document.getElementsByClassName('formEdit')[0]; //En caso de estar dentro de table_edit.html coge el formEdit
     var h3 = document.createElement('h3'); //Un h3 para explicar que estamos haciendo
     h3.textContent = 'Formulario de edición de la tabla: ' + table;
     formEdit.appendChild(h3);
+    // console.log("Table structure: ", tableStructure);
+    // console.log("Data: ", data);
     for (row in data) { //Recorremos el json de los datos
         tableStructure.forEach(function(column) { //Recorremos el json de la estructura de la tabla
             var div = document.createElement('div'); //Creamos el div para meterle dentro el label e input
@@ -207,9 +206,8 @@ function buildForm(tableStructure, data, table) { //Funcion para crear el formul
                                     var option = document.createElement('option');
                                     option.value = response[i].id;
                                     option.textContent = capitalizeFirstLetter(response[i].type);
-                                    if (type_row == response[i].type) {
+                                    if (type_row == response[i].type)
                                         option.selected = true;
-                                    }
                                     
                                     select.appendChild(option); //Añadimos el option al select
                                 }
@@ -243,6 +241,7 @@ function buildForm(tableStructure, data, table) { //Funcion para crear el formul
             }
         });
     }
+    
     var button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn btn-outline-primary';
@@ -273,4 +272,134 @@ function buildForm(tableStructure, data, table) { //Funcion para crear el formul
         return false;
     };
     formEdit.appendChild(button);
+}
+
+function buildFormNew(tableStructure, table) {
+    var formNew = document.getElementById('formNew');
+    var h3 = document.createElement('h3');
+    h3.textContent = 'Formulario de creación de datos para la tabla: ' + table;
+    formNew.appendChild(h3);
+    //console.log("Estructura de la tabla: ", tableStructure);
+
+    tableStructure.forEach(function(column) {
+        //console.log("Column: ", column);
+        if (column.REFERENCED_COLUMN_NAME != '') {
+            var div = document.createElement('div');
+            div.className = 'mb-3';
+            var label = document.createElement('label');
+            label.textContent = capitalizeFirstLetter(column.COLUMN_NAME) + ":";
+            label.className = 'form-label';
+            var select = document.createElement('select');
+            select.className = 'form-select';
+            select.name = column.COLUMN_NAME; //No funciona si no le pones el name porque no puede coger el valor del select
+
+            var xhr = new XMLHttpRequest(); //Peticion para pedirle al tableHelper los datos de la tabla ajena
+            xhr.open('GET', middleware + 'tables.php?function=getFkData&table=' + column.COLUMN_NAME, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) { //Si la peticion esta hecha correctamente, crea los options y luego al que coincida con el valor que tenemos en los datos que recibimos del valor que queremos editar, le metemos option.selected = true
+                        var response = JSON.parse(xhr.responseText);
+                        var option = document.createElement('option');
+                        option.value = 0;
+                        option.textContent = "Seleccione una opción";
+                        select.appendChild(option);
+                        for (i=0; i < response.length; i++) {
+                            var option = document.createElement('option');
+                            option.value = response[i].id;
+                            option.textContent = capitalizeFirstLetter(response[i].type);
+
+                            select.appendChild(option); //Añadimos el option al select
+                        }
+                    }
+                }
+            };
+            xhr.send();
+            var div_validation = document.createElement('div'); 
+            div_validation.className = 'invalid-feedback';
+            div_validation.textContent = 'No puedes dejar el select vacío';
+
+            div.appendChild(label);
+            div.appendChild(select);
+            div.appendChild(div_validation);
+            formNew.appendChild(div);
+        } else if (column.COLUMN_TYPE == 'varchar(255)') {
+            var div = document.createElement('div');
+            div.className = 'mb-3';
+            var label = document.createElement('label');
+            label.textContent = capitalizeFirstLetter(column.COLUMN_NAME) + ":";
+            label.className = 'form-label';
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.name = column.COLUMN_NAME;
+            input.className = 'form-control';
+
+            if (column.COLUMN_NAME == 'username') { // Añadir evento para evitar espacios en el campo 'username'
+                input.addEventListener('input', function(event) {
+                    this.value = this.value.replace(/\s/g, '');
+                });
+            }
+
+            var div_validation = document.createElement('div');
+            div_validation.className = 'invalid-feedback';
+            div_validation.textContent = 'No puedes dejar vacío el campo: ' + capitalizeFirstLetter(column.COLUMN_NAME);
+
+            div.appendChild(label);
+            div.appendChild(input);
+            div.appendChild(div_validation);
+            formNew.appendChild(div);   
+        }
+    });
+    
+    var btnAdd = document.createElement('button');
+    btnAdd.type = 'button';
+    btnAdd.className = 'btn btn-outline-primary';
+    btnAdd.textContent = 'Añadir';
+    btnAdd.onclick = function() {
+        var jsonData = {}; 
+        for (var i = 0; i < tableStructure.length; i++) {
+            var columnName = tableStructure[i].COLUMN_NAME;
+            var inputValue = formNew.querySelector('[name="' + columnName + '"]');
+            if (inputValue)
+                jsonData[columnName] = inputValue.value;
+            else
+                console.error('No se encontró ningún elemento con el nombre de columna: ' + columnName);
+        }
+        console.log("Json a mandar al php: ", jsonData);
+
+        Swal.fire({
+            title: "¿Estás seguro de que quieres añadir estos valores?",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Añadir",
+            cancelButtonText: "Cancelar"
+          }).then((result) => {
+            if (result.isConfirmed) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', middleware + 'tables.php?function=newValue&table=' + table, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === XMLHttpRequest.DONE)
+                        if (xhr.status === 200) 
+                            swalNotificationAndLeave(JSON.parse(xhr.responseText));
+                        
+                }
+                xhr.send(JSON.stringify(jsonData)); 
+            }
+          });
+    };
+    formNew.appendChild(btnAdd);
+
+    formNew.style.display = 'block';
+    return false;
+}
+
+function changeFormNewDisplay() {
+    getTableStructure(table)
+    .then(response => {
+        buildFormNew(response, table);
+    })  
+    .catch(error => {
+        console.log(error);
+    });
 }

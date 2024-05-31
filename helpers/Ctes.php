@@ -5,7 +5,7 @@
     $servername = "localhost";
     $username = "root";
     $password = "";
-    $dbname = "radio";
+    $dbname = "administracion";
 
     $options = array(
         PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",

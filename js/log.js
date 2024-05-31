@@ -8,17 +8,11 @@ var jsError_notLogued = {
 };
 
 var jsError_alrLogued = {
+    "status" : "error",
     "message" : "Ya estás logueado!",
     "timer" : timer,
     "redirection" : "main.html"
 };
-
-function getFolderName() {
-    var absoluteUrl = window.location.href;
-    var url = new URL(absoluteUrl);
-    var directoryPath = url.pathname.substring(0, url.pathname.lastIndexOf('/'));
-    return directoryPath;
-}
 
 var middleware = getFolderName() + "/middleware/";
 
@@ -27,42 +21,32 @@ document.addEventListener('DOMContentLoaded', function() {
     //console.log("Token: ", token);
     var fileName = window.location.href.split('/').pop().split('?')[0];
 
-    deleteOldTokens(); //Lo primero, borrar tokens
-
     if (fileName == 'index.html') { //Si está dentro de index está logueandose o creando otro usuario
-        if (token != null || token != '') { //Si existe ya el token significa que el usuario está logueado
-            //Si existe token, comprobar que la fecha de caducidad no haya pasado
-            tokenDate(token)
-            .then((response) => {
-                if (checkTokenDate(response).status == 'success') { //Si el token esta vigente el usuario está ya logueado
-                    let rspn_cmbd_st = Object.assign({}, response, jsError_alrLogued);
-                    let rspn_cmbd_js = JSON.stringify(rspn_cmbd_st); 
-                    swalNotificationAndLeave(rspn_cmbd_js);
-                } //No tiene sentido ponerle un else porque no va a llegar nunca el caso de que le llegue un token no vigente debido a que borramos antiguos tokens al principio del codigo
+        if (token != null) { //Si el token es diferente de null hacemos las comprobaciones
+            deleteOldTokens(token) //Borramos los tokens fuera de vigencia y le pasamos el token que está en el navegador, ya que es diferente de null
+            .then((response) => { 
+                if (response.status == 'success') { //Si el servidor nos devuelve un success, es que el usuario ya está logueado, lo mandamos a main.html con la funcion swalNotificationAndLeave (Revisar documentacion de la funcion para saber como va)
+                    jsError_alrLogued.reason = response.reason; //Le añadimos el reason al json de error para que el usuario tenga mas informacion de que ha sucedido
+                    swalNotificationAndLeave(jsError_alrLogued);
+                }
             }).catch((error) => {
                 console.error(error);
-            });   
-        }
-    } else { //En caso de estar en otro archivo diferente de index.html hace la logica justo al reves
-        if (token == null || token == '' || token == undefined) { //El usuario no está logueado
-            swalNotificationAndLeave(jsError_notLogued);
-        } else {
-            tokenDate(token)
-            .then(response => {
-                if (checkTokenDate(response).status == 'error') {
-                    var json = {
-                        "status" : response.status,
-                        "message" : response.message,
-                        "token_expiration" : response.token_expiration,
-                        "redirection" : "index.html",
-                        "timer" : 1500
-                    };
-                    swalNotificationAndLeave(json);
-                }
-            }).catch(error => {
-                console.log(error);
             });
-            getUserData(token);
+        } //Si el token es null no tenemos ningun problema y procedemos con el funcionamiento del archivo
+    } else { //En caso de estar en otro archivo diferente de index.html hace la logica justo al reves
+        if (token == null || token == '' || token == undefined) { //El usuario no está logueado y se le manda para index.html
+            swalNotificationAndLeave(jsError_notLogued);
+        } else { //Si existe un token, ejecutamos la funcion deleteOldTokens que borra tokens antiguos y luego con el token que hay en el localStorage busca si existe aún en la bbdd (significaría que no se ha borrado con lo que aun tiene fecha de vigencia)
+            deleteOldTokens(token)
+            .then((response) => {
+                if (response.status == 'error') { //Si el Helper nos devuelve error es porque el token se ha borrado de la bbdd al no tener vigencia, se manda al usuario a index.hmtl
+                    jsError_notLogued.reason = response.reason; //Al json de error se le añade el motivo para que la notificacion sea mas detallada y el usuario sepa que ha sucedido
+                    swalNotificationAndLeave(jsError_notLogued);
+                }
+            }).catch((error) => {
+                console.error(error);
+            }); 
+            getUserData(token); //Si el Helper nos devuelve success es porque el token seguiría vigente con lo que no se meteria en el if de arriba y podriamos seguir con el funcionamiento de la pagina
         }
     }
 });
@@ -87,80 +71,46 @@ function log(form) {
     return false; 
 }
 
-function deleteOldTokens() {    
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", middleware + "log.php?function=deleteOldTokens", true);
-    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            var response = JSON.parse(xhr.responseText);    
-            console.log("Respuesta del servidor a borrar antiguos tokens: ", response);
-        }
-    };
-    xhr.send();
-}
-
-function tokenDate(token) {
-    return new Promise((resolve, reject) => {
+function deleteOldTokens(token) { //Funcion que le manda informacion a log.php y ese archivo le pide recursos a authhelper.php    
+    return new Promise((resolve, reject) => { //He hecho esta funcion promesa para tener menos lio con si se devuelven los recursos o no a tiempo, con esta funcion asi hecha, conseguimos que cuando se pida cierta informacion, hasta no recibirla no seguimos con el funcionamiento de la pagina
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', middleware + 'log.php?function=checkTokenDate&token=' + token, true);
+        xhr.open("POST", middleware + "log.php?function=deleteOldTokens&token=" + token, true);
         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
         xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) 
-                if (xhr.status === 200) {
-                    var response = JSON.parse(xhr.responseText);
-                    resolve(response);
-                } else {
-                    const error = new Error("Error!");
-                    error.status = xhr.status;
-                    error.statusText = xhr.statusText;
-                    reject(error);
-                }    
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) 
+                    resolve(JSON.parse(xhr.responseText));
+                else
+                    reject(JSON.parse(xhr.responseText));
+                
+            }
         };
         xhr.send();
     });
 }
 
-function swalNotificationAndLeave(response) {
-    Swal.fire({
-        position: "center",
-        icon: response.status,
-        title: response.message,
-        timer: response.timer,
-        showConfirmButton: false
-    });
+function swalNotificationAndLeave(response) { //Funcion para mostrar una notificacion de la libreria sweetalert, que me gusta bastante
+    if ('reason' in response) //Si tiene la propiedad reason dentro de response, mostramos una notificacion con un pequeño texto para darle mas informacion al usuario de que acaba de pasar
+        Swal.fire({
+            position: "center",
+            icon: response.status,
+            title: response.message,
+            text: response.reason,
+            timer: response.timer,
+            showConfirmButton: false
+        });
+    else 
+        Swal.fire({
+            position: "center",
+            icon: response.status,
+            title: response.message,
+            timer: response.timer,
+            showConfirmButton: false
+        });
+    
     setTimeout(function() {
         window.location.href = response.redirection;
     }, response.timer);
-}
-
-function checkTokenDate(response) { //En esta funcion le pasamos un token existente en la bbdd, comprobamos que la fecha no haya expirado y devolvemos datos en función de la respuesta del servidor
-    if (response.token_expiration != null) {
-        var currentDate = new Date();
-        //console.log("Fecha actual: ", currentDate);
-        var expirationDate = new Date(response.token_expiration);
-        //console.log("Fecha de expiracion: ", expirationDate);
-        var redirection = "index.html";
-        if (currentDate > expirationDate)
-            return {
-                "status" : "error",
-                "message" : "El token ha expirado",
-                "redirection" : redirection,
-                "timer" : timer
-            };
-        else 
-            return {
-                "status" : "success",
-                "message" : "El token sigue vigente",
-                "timer" : null
-            };
-    } else 
-        return {
-            "status" : "error",
-            "message" : "No se ha encontrado la fecha de expiración del token",
-            "redirection" : redirection,
-            "timer" : timer
-        };
 }
 
 function getUserData(token) {

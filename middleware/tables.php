@@ -29,6 +29,10 @@
                 $json = file_get_contents('php://input');
                 $data = json_decode($json, true);
                 $response = TableHelper::editValues($table, $data);
+            } else if ($function == 'newValue') {
+                $json = file_get_contents('php://input');
+                $data = json_decode($json, true);
+                $response = TableHelper::newValue($table, $data);
             }
         }
     }

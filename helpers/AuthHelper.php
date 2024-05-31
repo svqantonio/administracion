@@ -3,16 +3,36 @@
     class AuthHelper {
 
         public static function login($usr, $pwd) {
-            global $conn;
+            global $conn; global $timer;
 
+            $redirection = 'index.html';
             $pwd_hs = md5($pwd);
             $stmt = $conn->prepare('SELECT id, name, role FROM users WHERE username = :username AND password = :password'); //Necesito pasarle id por la consulta porque luego dentro del insertToken le paso ese id para meterle el registro del token al usuario correspondiente. El name para ponerlo arriba junto al boton de cerrar sesion y el role para dejar que el usuario haga ciertas acciones o no
             $stmt->bindParam(':username', $usr);
             $stmt->bindParam(':password', $pwd_hs);
-            $stmt->execute();
-            $result = $stmt->fetch();
-            $response = self::insertToken($result, 'logueado');
-            return array_merge($result, $response);
+            if ($stmt->execute()) {
+                if ($stmt->rowCount() > 0) {
+                    $result = $stmt->fetch();
+                    $response = self::insertToken($result, 'logueado');
+                    return array_merge($result, $response);
+                } else {
+                    $response = [
+                        "status" => "error",
+                        "message" => "No se ha encontrado al usuario",
+                        "redirection" => $redirection,
+                        "timer" => $timer
+                    ];
+                    return $response;
+                }
+            } else {
+                $response = [
+                    "status" => "error",
+                    "message" => "Ha habido un error ejecutando la consulta",
+                    "redirection" => $redirection,
+                    "timer" => $timer
+                ];
+                return $response;
+            }
         }
 
         public static function register($usr, $name, $pwd, $role) {
@@ -45,6 +65,7 @@
                     $usr_id = $result;
 
                 $expiration_time = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                //$expiration_time = date('Y-m-d H:i:s', strtotime('+1 minute'));
 
                 $stmt = $conn->prepare("INSERT INTO tokens SET token = :token, user_id = :user_id, token_expiration = :token_expiration;");
                 $stmt->bindParam(':token', $token);
@@ -162,6 +183,30 @@
                     "status" => "error",
                     "message" => "Ha habido un error buscando el token"
                 ]; 
+            }
+        }
+
+        public static function deleteOldTokens($token) {
+            global $conn; global $timer;
+                
+            //$stmt = $conn->prepare("DELETE FROM tokens WHERE token_expiration < DATE_ADD(NOW(), INTERVAL 2 HOUR);"); //Este sirve para mi servidor privado
+            $stmt = $conn->prepare("DELETE FROM tokens WHERE token_expiration < NOW();");
+            if ($stmt->execute()) {
+                $stmt = $conn->prepare('SELECT * FROM tokens WHERE token = :token');
+                $stmt->bindParam(':token', $token);
+                $stmt->execute();
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($result)
+                    return [
+                        "status" => "success",
+                        "reason" => "Token aún vigente"
+                    ];
+                else
+                    return [
+                        "status" => "error",
+                        "reason" => "Token expirado"
+                    ];
+                
             }
         }
 

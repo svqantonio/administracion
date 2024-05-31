@@ -154,4 +154,68 @@
             return $result;
         }
 
+        public static function newValue($table, $data) {
+            global $conn;
+            global $timer;
+            $redirection = 'table.html?table=' . $table;
+        
+            // Verificación específica para la tabla 'users'
+            if ($table === 'users' && isset($data['username'])) {
+                // Verificar si el username ya existe
+                $data['password'] = md5($data['password']);
+                $checkUsernameStmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
+                $checkUsernameStmt->execute([$data['username']]);
+                $usernameExists = $checkUsernameStmt->fetchColumn() > 0;
+        
+                if ($usernameExists) {
+                    return [
+                        "status" => "error",
+                        "message" => "El username ya existe. Por favor, elija otro.",
+                        "redirection" => $redirection,
+                        "timer" => $timer
+                    ];
+                }
+            }
+        
+            $columns = ""; // Inicializar las columnas
+            $placeholders = ""; // Inicializar los placeholders
+            $values = []; // Inicializar un array para almacenar los valores de los parámetros
+        
+            // Iterar sobre el JSON recibido para construir la consulta
+            foreach ($data as $columnName => $columnValue) {
+                // Agregar el nombre de la columna y el placeholder
+                $columns .= "$columnName, ";
+                $placeholders .= "?, ";
+                // Agregar el valor al array de valores de los parámetros
+                $values[] = $columnValue;
+            }
+        
+            // Eliminar las comas extra al final de las columnas y placeholders
+            $columns = rtrim($columns, ", ");
+            $placeholders = rtrim($placeholders, ", ");
+        
+            // Construir la consulta de inserción
+            $sql = "INSERT INTO $table ($columns) VALUES ($placeholders)";
+            
+            // Preparar y ejecutar la consulta
+            $stmt = $conn->prepare($sql);
+            $result = $stmt->execute($values);
+        
+            if ($result) {
+                return [
+                    "status" => "success",
+                    "message" => "Registro insertado correctamente",
+                    "redirection" => $redirection,
+                    "timer" => $timer
+                ];
+            } else {
+                return [
+                    "status" => "error",
+                    "message" => "Ha habido un error insertando el registro",
+                    "redirection" => $redirection,
+                    "timer" => $timer
+                ];
+            }
+        }        
+
     }

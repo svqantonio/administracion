@@ -61,7 +61,11 @@ function createTable_allBBDDTables(user_role, response) { //Funcion para crear l
         var th_btnEdit = document.createElement('th');
         var btnEdit = document.createElement('button');
         btnEdit.textContent = 'Editar';
-        btnEdit.classList.add('btn', 'btn-link');
+        if (user_role == 1)
+            btnEdit.classList.add('btn', 'btn-link');
+        else    
+            btnEdit.classList.add('btn', 'btn-secondary');
+
         btnEdit.onclick = function() {
             if (rspn.table_name != 'tokens') {
                 if (user_role == 1)
@@ -72,6 +76,18 @@ function createTable_allBBDDTables(user_role, response) { //Funcion para crear l
                 swalNotificationAndLeave(jsError_notHappening);
             }
         };
+        /*var linkEdit = document.createElement('a');
+        linkEdit.onclick = function() {
+            if (rspn.table_name != 'tokens') {
+                if (user_role == 1)
+                    window.location.href = 'table.html?table=' + rspn.table_name; //Con esta redirección mandamos a tables.html el nombre de la tabla a editar
+                else {
+                    swalNotificationAndLeave(jsError_whtAuth);
+                }
+            } else {
+                swalNotificationAndLeave(jsError_notHappening);
+            }
+        }*/
 
         //Añadimos toda la parte de los trs y tal al tbody
         tr_tbody.appendChild(th);
@@ -95,9 +111,9 @@ function createTable_allBBDDTables(user_role, response) { //Funcion para crear l
 
 function loadLogOutBtn(user_name, token) {
     var p = document.createElement('p');
-    p.textContent = 'Bienvenido, ' + user_name + '!  ';
+    p.textContent = 'Bienvenido, ' + capitalizeFirstLetter(user_name) + '!  ';
     var btn = document.createElement('button');
-    btn.classList.add('btn', 'btn-outline-secondary');
+    btn.className = 'btn btn-link';
     btn.textContent = 'Cerrar sesión';
     btn.onclick = function() { logOut(token); };
     p.style.position = 'fixed';
