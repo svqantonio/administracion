@@ -8,3 +8,10 @@ function getFolderName() {
     var directoryPath = url.pathname.substring(0, url.pathname.lastIndexOf('/'));
     return directoryPath;
 }
+
+function noSpaces(event) {
+    if (event.key === ' ') {
+        event.preventDefault();
+        return false;
+    }
+}
