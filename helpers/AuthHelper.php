@@ -114,7 +114,7 @@
         public static function loadAllTables($dbname) {
             global $conn;
 
-            $stmt = $conn->prepare("SELECT table_name FROM information_schema.tables WHERE table_schema = :dbname order by table_name;");
+            $stmt = $conn->prepare("SELECT table_name AS TABLE_NAME FROM information_schema.tables WHERE table_schema = :dbname order by table_name;");
             $stmt->bindValue(':dbname', $dbname);
             $stmt->execute();
             $result = $stmt -> fetchAll(PDO::FETCH_ASSOC);

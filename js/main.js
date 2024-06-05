@@ -57,37 +57,17 @@ function createTable_allBBDDTables(user_role, response) { //Funcion para crear l
     response.forEach(function(rspn) { //Con este for each lo que hago es crear todo el contenido de la tabla a partir del response que cogemos de loadAllTables()
         var tr_tbody = document.createElement('tr');
         var th = document.createElement('th');
-        th.textContent = rspn.table_name;
+        th.textContent = rspn.TABLE_NAME;
         var th_btnEdit = document.createElement('th');
         var btnEdit = document.createElement('button');
         btnEdit.textContent = 'Editar';
-        if (user_role == 1)
-            btnEdit.classList.add('btn', 'btn-link');
-        else    
-            btnEdit.classList.add('btn', 'btn-secondary');
+        if ((user_role == 1 && rspn.TABLE_NAME == 'tokens') || ((user_role != 1) && (rspn.TABLE_NAME == 'users' || rspn.TABLE_NAME == 'tokens' || rspn.TABLE_NAME == 'roles')))
+            btnEdit.disabled = true;
+        btnEdit.className = 'btn btn-link';
 
         btnEdit.onclick = function() {
-            if (rspn.table_name != 'tokens') {
-                if (user_role == 1)
-                    window.location.href = 'table.html?table=' + rspn.table_name; //Con esta redirección mandamos a tables.html el nombre de la tabla a editar
-                else 
-                    swalNotificationAndLeave(jsError_whtAuth);
-            } else {
-                swalNotificationAndLeave(jsError_notHappening);
-            }
+            window.location.href = 'table.html?table=' + rspn.TABLE_NAME; //Con esta redirección mandamos a tables.html el nombre de la tabla a editar
         };
-        /*var linkEdit = document.createElement('a');
-        linkEdit.onclick = function() {
-            if (rspn.table_name != 'tokens') {
-                if (user_role == 1)
-                    window.location.href = 'table.html?table=' + rspn.table_name; //Con esta redirección mandamos a tables.html el nombre de la tabla a editar
-                else {
-                    swalNotificationAndLeave(jsError_whtAuth);
-                }
-            } else {
-                swalNotificationAndLeave(jsError_notHappening);
-            }
-        }*/
 
         //Añadimos toda la parte de los trs y tal al tbody
         tr_tbody.appendChild(th);
